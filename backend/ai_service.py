@@ -1,34 +1,32 @@
 import os
 import google.generativeai as genai
+from dotenv import load_dotenv
+
+load_dotenv()
 
 API_KEY = os.getenv("GEMINI_API_KEY")
 
 if API_KEY:
     genai.configure(api_key=API_KEY)
 
-model = genai.GenerativeModel("gemini-2.0-flash")
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 
-def generate_answer(question, context):
-    if not API_KEY:
-        return "GEMINI_API_KEY is not configured."
-
+def ask_ai(question, context=""):
     prompt = f"""
 You are DocuMind AI, a document question-answering assistant.
 
-Answer the user's question using ONLY the provided document context.
-If the answer is not present in the context, say:
-"I could not find this information in the uploaded document."
+Answer the user's question using the provided document context.
 
 Document Context:
 {context}
 
-User Question:
+Question:
 {question}
 
-Give a clear and concise answer.
+If the answer is not available in the document, clearly say:
+"I could not find this information in the document."
 """
 
     response = model.generate_content(prompt)
-
     return response.text
