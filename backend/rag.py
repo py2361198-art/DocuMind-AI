@@ -1,19 +1,76 @@
-from embeddings import model
-from vector_store import VectorStore
+from fastapi import FastAPI, UploadFile, File
+from pdf_service import extract_text_from_pdf
+from chunking import split_text
+from rag import RAGSystem
+import tempfile
+import os
+
+app = FastAPI(title="DocuMind AI")
+
+rag_system = RAGSystem()
 
 
-class RAGSystem:
-    def __init__(self):
-        self.vector_store = VectorStore()
+@app.get("/")
+def home():
+    return {
+        "message": "DocuMind AI API is running"
+    }
 
-    def add_documents(self, chunks):
-        embeddings = model.encode(chunks).tolist()
-        self.vector_store.add(embeddings, chunks)
 
-    def search(self, question, top_k=3):
-        question_embedding = model.encode([question])[0].tolist()
+@app.get("/health")
+def health():
+    return {
+        "status": "OK"
+    }
 
-        return self.vector_store.search(
-            question_embedding,
-            top_k
-        )
+
+@app.post("/upload-pdf")
+async def upload_pdf(file: UploadFile = File(...)):
+
+    if not file.filename.lower().endswith(".pdf"):
+        return {
+            "error": "Only PDF files are allowed"
+        }
+
+    content = await file.read()
+
+    with tempfile.NamedTemporaryFile(
+        delete=False,
+        suffix=".pdf"
+    ) as temp:
+
+        temp.write(content)
+        temp_path = temp.name
+
+    try:
+        text = extract_text_from_pdf(temp_path)
+
+        chunks = split_text(text)
+
+        if not chunks:
+            return {
+                "error": "No readable text found in PDF"
+            }
+
+        rag_system.add_documents(chunks)
+
+        return {
+            "filename": file.filename,
+            "characters": len(text),
+            "chunks": len(chunks),
+            "message": "PDF processed successfully"
+        }
+
+    finally:
+        os.remove(temp_path)
+
+
+@app.post("/ask")
+async def ask_question(question: str):
+
+    results = rag_system.search(question)
+
+    return {
+        "question": question,
+        "relevant_chunks": results
+    }
