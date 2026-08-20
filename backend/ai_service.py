@@ -1,15 +1,15 @@
 import os
-import google.generativeai as genai
+from google import genai
 from dotenv import load_dotenv
 
 load_dotenv()
 
 API_KEY = os.getenv("GEMINI_API_KEY")
 
-if API_KEY:
-    genai.configure(api_key=API_KEY)
+if not API_KEY:
+    raise ValueError("GEMINI_API_KEY is not set")
 
-model = genai.GenerativeModel("gemini-1.5-flash")
+client = genai.Client(api_key=API_KEY)
 
 
 def ask_ai(question, context=""):
@@ -28,5 +28,9 @@ If the answer is not available in the document, clearly say:
 "I could not find this information in the document."
 """
 
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model="gemini-3.7-flash",
+        contents=prompt
+    )
+
     return response.text
